@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reel Tool Finder</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --fg:#e8eaf0; --mut:#8b93a7; --ok:#3ddc97; --ac:#7c5cff }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--fg); font:15px system-ui,sans-serif; padding:16px; max-width:900px; margin:auto }
+  header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px }
+  h1 { font-size:20px; margin:0; flex:1 }
+  button { background:var(--ac); color:#fff; border:0; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600 }
+  .pill { background:#2a2f3a; padding:4px 10px; border-radius:99px; font-size:13px; color:var(--mut) }
+  .card { background:var(--card); border-radius:12px; padding:14px; margin-bottom:12px; border-left:4px solid var(--ok) }
+  .card h3 { margin:0 0 4px } .card p { margin:4px 0; color:var(--mut) } .card b { color:var(--fg) }
+  a { color:var(--ac) } label { color:var(--mut); font-size:13px }
+  .none { border-color:#333; opacity:.6 }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔎 Reel Tool Finder</h1>
+  <span class="pill" id="status">…</span>
+  <span class="pill" id="count">0 scanned</span>
+  <label><input type="checkbox" id="all"> show non-tool reels</label>
+  <button id="pause">Pause / Resume</button>
+</header>
+<div id="dbg" style="color:#8b93a7;font:12px monospace;margin-bottom:10px"></div>
+<div id="list"></div>
+<script>
+const $ = id => document.getElementById(id);
+$('pause').onclick = () => fetch('/api/pause');
+async function load() {
+  try {
+    const s = await (await fetch('/api/state')).json();
+    $('status').textContent = s.status; $('status').title = s.debug || '';
+    $('dbg').textContent = s.debug || ''; $('count').textContent = s.scanned + ' scanned this session';
+    const showAll = $('all').checked;
+    const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    $('list').innerHTML = s.reels.filter(r => showAll || (r.relevant && r.tools?.length)).map(r => r.tools?.length
+      ? r.tools.map(t => `<div class="card"><h3>${esc(t.name)} ${t.url ? `· <a target="_blank" href="${/^https?:/.test(t.url) ? esc(t.url) : 'https://' + esc(t.url)}">${esc(t.url)}</a>` : ''}</h3>
+          <p><b>What:</b> ${esc(t.what)}</p><p><b>Use it for:</b> ${esc(t.use_case)}</p>
+          <p><a target="_blank" href="${esc(r.url)}">source reel</a></p></div>`).join('')
+      : `<div class="card none"><p>${esc(r.error || r.summary || r.text)}</p><a target="_blank" href="${esc(r.url)}">reel</a></div>`).join('')
+      || '<p style="color:var(--mut)">No tools found yet — log in to Instagram in the opened window and wait…</p>';
+  } catch {}
+}
+setInterval(load, 2000); load();
+</script>
+</body>
+</html>
